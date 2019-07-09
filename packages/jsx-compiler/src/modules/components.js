@@ -66,10 +66,12 @@ module.exports = {
           const alias = getComponentAlias(node.name.name);
           removeImport(alias);
           if (alias) {
-            node.name = t.jsxIdentifier(alias.name);
+            // miniapp template tag name does not support @ symbol
+            const componentTag = alias.name.replace(/^@/, '');
+            node.name = t.jsxIdentifier(componentTag);
             // handle with close tag too.
-            if (parent.closingElement) parent.closingElement.name = t.jsxIdentifier(alias.name);
-            usingComponents[alias.name] = getComponentPath(alias);
+            if (parent.closingElement) parent.closingElement.name = t.jsxIdentifier(componentTag);
+            usingComponents[componentTag] = getComponentPath(alias);
 
             /**
              * Handle with special attrs.
