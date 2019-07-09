@@ -1,9 +1,9 @@
 {
   "name": "rax-cli",
-  "version": "0.5.0",
+  "version": "1.4.2",
   "license": "BSD-3-Clause",
-  "description": "The Rax CLI tools",
-  "main": "lib/index.js",
+  "description": "Command line interface for Rax",
+  "main": "src/index.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/alibaba/rax.git"
@@ -16,15 +16,15 @@
     "rax": "bin/rax.js"
   },
   "engines": {
-    "npm": ">=3.0.0"
+    "npm": ">=4.0.0"
   },
   "dependencies": {
-    "chalk": "^1.1.1",
-    "cross-spawn": "^4.0.2",
+    "chalk": "^2.4.1",
+    "cross-spawn": "^6.0.5",
     "easyfile": "^0.1.1",
-    "inquirer": "^3.0.6",
+    "inquirer": "^6.2.1",
     "minimist": "^1.2.0",
-    "semver": "^5.3.0",
-    "update-notifier": "^1.0.3"
+    "semver": "^5.6.0",
+    "update-notifier": "^2.5.0"
   }
 }

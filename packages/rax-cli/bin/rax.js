@@ -1,20 +1,20 @@
 #!/usr/bin/env node
 
 // Update notifications
-var updateNotifier = require('update-notifier');
-var pkg = require('../package.json');
+const updateNotifier = require('update-notifier');
+const pkg = require('../package.json');
 
 updateNotifier({pkg: pkg}).notify();
 
 // Check node version
-var chalk = require('chalk');
-var semver = require('semver');
+const chalk = require('chalk');
+const semver = require('semver');
 
-if (!semver.satisfies(process.version, '>=4')) {
-  var message = 'You are currently running Node.js ' +
+if (!semver.satisfies(process.version, '>=8')) {
+  const message = 'You are currently running Node.js ' +
     chalk.red(process.version) + '.\n' +
     '\n' +
-    'Rax runs on Node 4.0 or newer. There are several ways to ' +
+    'Rax runs on Node 6.0 or newer. There are several ways to ' +
     'upgrade Node.js depending on your preference.\n' +
     '\n' +
     'nvm:       nvm install node && nvm alias default node\n' +
@@ -25,16 +25,15 @@ if (!semver.satisfies(process.version, '>=4')) {
   process.exit(1);
 }
 
-var fs = require('fs');
-var path = require('path');
-var execSync = require('child_process').execSync;
-var spawn = require('cross-spawn');
-var inquirer = require('inquirer');
-var chalk = require('chalk');
-var cli = require('../lib/');
-var argv = require('minimist')(process.argv.slice(2));
+const fs = require('fs');
+const path = require('path');
+const execSync = require('child_process').execSync;
+const spawn = require('cross-spawn');
+const inquirer = require('inquirer');
+const cli = require('../src/');
+const argv = require('minimist')(process.argv.slice(2));
 
-var RAX_PACKAGE_JSON_PATH = path.resolve(
+const RAX_PACKAGE_JSON_PATH = path.resolve(
   process.cwd(),
   'node_modules',
   'rax',
@@ -44,7 +43,7 @@ var RAX_PACKAGE_JSON_PATH = path.resolve(
 checkForVersionArgument();
 
 // minimist api
-var commands = argv._;
+const commands = argv._;
 
 if (commands.length === 0) {
   console.error(
@@ -57,8 +56,8 @@ switch (commands[0]) {
   case 'init':
     if (!commands[1]) {
       console.error(
-      'Usage: rax init <ProjectName> [--verbose]'
-    );
+        'Usage: rax init <ProjectName> [--verbose]'
+      );
       process.exit(1);
     } else {
       init(commands[1], argv.verbose, argv.version);
@@ -66,27 +65,27 @@ switch (commands[0]) {
     break;
   default:
     console.error(
-    'Command `%s` unrecognized.',
-    commands[0]
-  );
+      'Command `%s` unrecognized.',
+      commands[0]
+    );
     process.exit(1);
     break;
 }
 
-function init(name, verbose, rwPackage) {
+function init(name, verbose) {
   Promise.resolve(fs.existsSync(name))
     .then(function(dirExists) {
       if (dirExists) {
-        return createAfterConfirmation(name, verbose, rwPackage);
+        return createAfterConfirmation(name, verbose);
       } else {
         return;
       }
     })
     .then(function() {
-      return askProjectInformaction(name, verbose, rwPackage);
+      return askProjectInformaction(name, verbose);
     })
     .then(function(answers) {
-      return createProject(name, verbose, rwPackage, answers);
+      return createProject(name, verbose, answers);
     })
     .catch(function(err) {
       console.error('Error occured', err.stack);
@@ -94,7 +93,7 @@ function init(name, verbose, rwPackage) {
     });
 }
 
-function createAfterConfirmation(name, verbose, rwPackage) {
+function createAfterConfirmation(name, verbose) {
   var property = {
     type: 'confirm',
     name: 'continueWhileDirectoryExists',
@@ -112,7 +111,7 @@ function createAfterConfirmation(name, verbose, rwPackage) {
   });
 }
 
-function askProjectInformaction(name, verbose, rwPackage) {
+function askProjectInformaction(name, verbose) {
   var questions = [
     {
       type: 'input',
@@ -121,8 +120,47 @@ function askProjectInformaction(name, verbose, rwPackage) {
       default: name
     },
     {
+      type: 'list',
+      name: 'projectType',
+      message: 'What\'s your project type?',
+      choices: [
+        {
+          name: 'UniversalApp (Build application that works multi-platform)',
+          value: 'univeraslapp'
+        },
+        {
+          name: 'WebApp (Build application that only works in broswers)',
+          value: 'webapp'
+        },
+        {
+          name: 'Component (Build component for universal application include web)',
+          value: 'component'
+        }
+      ],
+      default: 'univeraslapp'
+    },
+    {
+      type: 'checkbox',
+      name: 'projectFeatures',
+      when: function(answers) {
+        return answers.projectType === 'webapp';
+      },
+      message: 'Do you want to enable these features?',
+      choices: [
+        {
+          name: 'server sider rendering (ssr)',
+          value: 'ssr'
+        },
+        {
+          name: 'single page application (spa)',
+          value: 'spa'
+        }
+      ],
+      default: false
+    },
+    {
       type: 'input',
-      name: 'author',
+      name: 'projectAuthor',
       message: 'What\'s author\'s name?',
       default: 'rax'
     },
@@ -136,11 +174,10 @@ function askProjectInformaction(name, verbose, rwPackage) {
   return inquirer.prompt(questions);
 }
 
-function createProject(name, verbose, rwPackage, userAnswers) {
+function createProject(name, verbose, userAnswers) {
   var pkgManager = shouldUseYarn() ? 'yarn' : 'npm';
   var root = path.resolve(name);
   var projectName = userAnswers.projectName;
-  var projectAuthor = userAnswers.author;
   var autoInstallModules = userAnswers.autoInstallModules;
 
   console.log(
@@ -157,9 +194,10 @@ function createProject(name, verbose, rwPackage, userAnswers) {
     root: root,
     directoryName: name,
     projectName: projectName,
-    projectAuthor: projectAuthor,
+    projectType: userAnswers.projectType,
+    projectFeatures: userAnswers.projectFeatures,
+    projectAuthor: userAnswers.projectAuthor,
     verbose: verbose,
-    rwPackage: rwPackage
   }).then(function(directory) {
     if (autoInstallModules) {
       return install(directory, verbose);
@@ -172,7 +210,7 @@ function createProject(name, verbose, rwPackage, userAnswers) {
     if (!isAutoInstalled) {
       console.log(chalk.white('   ' + (pkgManager === 'npm' ? 'npm install' : 'yarn')));
     }
-    console.log(chalk.white('   ' + pkgManager + ' run start'));
+    console.log(chalk.white('   ' + pkgManager + ' start'));
   });
 }
 
@@ -190,7 +228,7 @@ function checkForVersionArgument() {
 
 function shouldUseYarn() {
   try {
-    execSync('yarnpkg --version', {stdio: 'ignore'});
+    execSync('yarn --version', {stdio: 'ignore'});
     return true;
   } catch (e) {
     return false;

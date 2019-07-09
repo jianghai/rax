@@ -1,34 +1,34 @@
+import { shared } from 'rax';
+
 const EMPTY_OBJECT = {};
+const TRUE = true;
 const UNITLESS_NUMBER_PROPS = {
-  animationIterationCount: true,
-  borderImageOutset: true,
-  borderImageSlice: true,
-  borderImageWidth: true,
-  boxFlex: true,
-  boxFlexGroup: true,
-  boxOrdinalGroup: true,
-  columnCount: true,
-  flex: true,
-  flexGrow: true,
-  flexPositive: true,
-  flexShrink: true,
-  flexNegative: true,
-  flexOrder: true,
-  gridRow: true,
-  gridColumn: true,
-  fontWeight: true,
-  lineClamp: true,
-  // We make lineHeight default is px that is diff with w3c spec
-  // lineHeight: true,
-  opacity: true,
-  order: true,
-  orphans: true,
-  tabSize: true,
-  widows: true,
-  zIndex: true,
-  zoom: true,
-  // Weex only
-  lines: true,
+  animationIterationCount: TRUE,
+  borderImageOutset: TRUE,
+  borderImageSlice: TRUE,
+  borderImageWidth: TRUE,
+  boxFlex: TRUE,
+  boxFlexGroup: TRUE,
+  boxOrdinalGroup: TRUE,
+  columnCount: TRUE,
+  flex: TRUE,
+  flexGrow: TRUE,
+  flexPositive: TRUE,
+  flexShrink: TRUE,
+  flexNegative: TRUE,
+  flexOrder: TRUE,
+  gridRow: TRUE,
+  gridColumn: TRUE,
+  fontWeight: TRUE,
+  lineClamp: TRUE,
+  lineHeight: TRUE,
+  opacity: TRUE,
+  order: TRUE,
+  orphans: TRUE,
+  tabSize: TRUE,
+  widows: TRUE,
+  zIndex: TRUE,
+  zoom: TRUE
 };
 
 const VOID_ELEMENTS = {
@@ -86,7 +86,9 @@ const UPPERCASE_REGEXP = /[A-Z]/g;
 const NUMBER_REGEXP = /^[0-9]*$/;
 const CSSPropCache = {};
 
-function styleToCSS(style) {
+function styleToCSS(style, options = {}) {
+  let defaultUnit = options.defaultUnit || 'px';
+  let remRatio = options.remRatio;
   let css = '';
   // Use var avoid v8 warns "Unsupported phi use of const or let variable"
   for (var prop in style) {
@@ -96,7 +98,15 @@ function styleToCSS(style) {
     if (UNITLESS_NUMBER_PROPS[prop]) {
       // Noop
     } else if (typeof val === 'number' || typeof val === 'string' && NUMBER_REGEXP.test(val)) {
+      unit = defaultUnit;
+    } else if (remRatio && typeof val === 'string' && val.indexOf('rem') > -1) {
+      // stylesheet-loader will transform padding: 40 to paddingTop: '40rem' ...
+      val = parseFloat(val);
       unit = 'rem';
+    }
+
+    if (unit === 'rem' && remRatio) {
+      val = val / remRatio;
     }
 
     prop = CSSPropCache[prop] ? CSSPropCache[prop] : CSSPropCache[prop] = prop.replace(UPPERCASE_REGEXP, '-$&').toLowerCase();
@@ -120,18 +130,56 @@ const updater = {
   }
 };
 
-function renderElementToString(element, context) {
+/**
+ * Functional Reactive Component Class Wrapper
+ */
+class ReactiveComponent {
+  constructor(pureRender) {
+    // A pure function
+    this._render = pureRender;
+    this._hookID = 0;
+    this._hooks = {};
+    // Handles store
+    this.didMount = [];
+    this.didUpdate = [];
+    this.willUnmount = [];
+  }
+
+  getHooks() {
+    return this._hooks;
+  }
+
+  getHookID() {
+    return ++this._hookID;
+  }
+
+  readContext(context) {
+    const Provider = context.Provider;
+    const contextProp = Provider.contextProp;
+    return this.context[contextProp] ? this.context[contextProp].value : Provider.defaultValue;
+  }
+
+  render() {
+    this._hookID = 0;
+
+    let children = this._render(this.props, this.context);
+
+    return children;
+  }
+}
+
+function renderElementToString(element, context, options) {
   if (typeof element === 'string') {
     return escapeText(element);
   } else if (element == null || element === false || element === true) {
-    return '<!-- empty -->';
+    return '<!-- _ -->';
   } else if (typeof element === 'number') {
     return String(element);
   } else if (Array.isArray(element)) {
     let html = '';
     for (var index = 0, length = element.length; index < length; index++) {
       var child = element[index];
-      html = html + renderElementToString(child, context);
+      html = html + renderElementToString(child, context, options);
     }
     return html;
   }
@@ -140,7 +188,6 @@ function renderElementToString(element, context) {
 
   if (type) {
     const props = element.props || EMPTY_OBJECT;
-
     if (type.prototype && type.prototype.render) {
       const instance = new type(props, context, updater); // eslint-disable-line new-cap
       let currentContext = instance.context = context;
@@ -174,10 +221,18 @@ function renderElementToString(element, context) {
       }
 
       var renderedElement = instance.render();
-      return renderElementToString(renderedElement, currentContext);
+      return renderElementToString(renderedElement, currentContext, options);
     } else if (typeof type === 'function') {
-      var renderedElement = type(props, context);
-      return renderElementToString(renderedElement, context);
+      const instance = new ReactiveComponent(type);
+      instance.props = props;
+      instance.context = context;
+
+      shared.Host.owner = {
+        _instance: instance
+      };
+
+      const renderedElement = instance.render();
+      return renderElementToString(renderedElement, context, options);
     } else if (typeof type === 'string') {
       const isVoidElement = VOID_ELEMENTS[type];
       let html = `<${type}`;
@@ -189,7 +244,7 @@ function renderElementToString(element, context) {
         if (prop === 'children') {
           // Ignore children prop
         } else if (prop === 'style') {
-          html = html + ` style="${styleToCSS(value)}"`;
+          html = html + ` style="${styleToCSS(value, options)}"`;
         } else if (prop === 'className') {
           html = html + ` class="${escapeText(value)}"`;
         } else if (prop === 'defaultValue') {
@@ -222,10 +277,10 @@ function renderElementToString(element, context) {
           if (Array.isArray(children)) {
             for (var i = 0, l = children.length; i < l; i++) {
               var child = children[i];
-              html = html + renderElementToString(child, context);
+              html = html + renderElementToString(child, context, options);
             }
           } else {
-            html = html + renderElementToString(children, context);
+            html = html + renderElementToString(children, context, options);
           }
         } else if (innerHTML) {
           html = html + innerHTML;
@@ -241,6 +296,6 @@ function renderElementToString(element, context) {
   }
 }
 
-exports.renderToString = function renderToString(element) {
-  return renderElementToString(element, EMPTY_OBJECT);
+exports.renderToString = function renderToString(element, options = {}) {
+  return renderElementToString(element, EMPTY_OBJECT, options);
 };

@@ -1,18 +1,30 @@
-import Component from '../component';
+import Component from './component';
 
-let rootCounter = 1;
+let rootID = 1;
 
 class Root extends Component {
-  rootID = rootCounter++;
-  isRootComponent() {}
-  render() {
-    return this.props.children;
+  constructor() {
+    super();
+    // Using fragment instead of null for avoid create a comment node when init mount
+    this.element = [];
+    this.rootID = rootID++;
   }
+
   getPublicInstance() {
     return this.getRenderedComponent().getPublicInstance();
   }
+
   getRenderedComponent() {
     return this._internal._renderedComponent;
+  }
+
+  update(element) {
+    this.element = element;
+    this.forceUpdate();
+  }
+
+  render() {
+    return this.element;
   }
 }
 

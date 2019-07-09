@@ -1,9 +1,12 @@
 function shouldUpdateComponent(prevElement, nextElement) {
-  // TODO: prevElement and nextElement could be array
   let prevEmpty = prevElement === null;
   let nextEmpty = nextElement === null;
   if (prevEmpty || nextEmpty) {
     return prevEmpty === nextEmpty;
+  }
+
+  if (Array.isArray(prevElement) && Array.isArray(nextElement)) {
+    return true;
   }
 
   let prevType = typeof prevElement;
@@ -11,6 +14,7 @@ function shouldUpdateComponent(prevElement, nextElement) {
   if (prevType === 'string' || prevType === 'number') {
     return nextType === 'string' || nextType === 'number';
   } else {
+    // prevElement and nextElement could be array, typeof [] is "object"
     return (
       prevType === 'object' &&
       nextType === 'object' &&

@@ -1,6 +1,5 @@
-import inject from './inject';
-import instance from './vdom/instance';
-import Host from './vdom/host';
+import inject from './vdom/inject';
+import Instance from './vdom/instance';
 
 function render(element, container, options, callback) {
   // Compatible with `render(element, container, callback)`
@@ -13,7 +12,7 @@ function render(element, container, options, callback) {
   // Init inject
   inject(options);
 
-  let rootComponent = instance.mount(element, container, options.parent);
+  let rootComponent = Instance.mount(element, container, options);
   let componentInstance = rootComponent.getPublicInstance();
 
   if (callback) {

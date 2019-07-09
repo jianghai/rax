@@ -4,8 +4,8 @@
 
 export default {
   update(prevElement, nextElement, component) {
-    let prevRef = prevElement != null && prevElement.ref;
-    let nextRef = nextElement != null && nextElement.ref;
+    let prevRef = prevElement && prevElement.ref || null;
+    let nextRef = nextElement && nextElement.ref || null;
 
     // Update refs in owner component
     if (prevRef !== nextRef) {
@@ -17,15 +17,21 @@ export default {
   },
   attach(ownerComponent, ref, component) {
     if (!ownerComponent) {
-      throw new Error(
-        'You might be adding a ref to a component that was not created inside a component\'s ' +
-        '`render` method, or you have multiple copies of Rax loaded.'
-      );
+      return console.error('ref: multiple version of Rax used in project.');
     }
 
     let instance = component.getPublicInstance();
+
+    if (process.env.NODE_ENV !== 'production') {
+      if (instance == null) {
+        console.error('ref: do not attach ref to function components because they don’t have instances.');
+      }
+    }
+
     if (typeof ref === 'function') {
       ref(instance);
+    } else if (typeof ref === 'object') {
+      ref.current = instance;
     } else {
       ownerComponent._instance.refs[ref] = instance;
     }
@@ -37,7 +43,10 @@ export default {
     } else {
       // Must match component and ref could detach the ref on owner when A's before ref is B's current ref
       let instance = component.getPublicInstance();
-      if (ownerComponent._instance.refs[ref] === instance) {
+
+      if (typeof ref === 'object' && ref.current === instance) {
+        ref.current = null;
+      } else if (ownerComponent._instance.refs[ref] === instance) {
         delete ownerComponent._instance.refs[ref];
       }
     }
